@@ -1,87 +1,64 @@
 const express = require('express');
 const router = express.Router();
-
-// In-memory Task Database
-let tasks = [
-  {
-    id: 1,
-    title: 'Setup Express Project',
-    description: 'Initialize Node project and install Express middleware',
-    completed: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 2,
-    title: 'Build CRUD Endpoints',
-    description: 'Implement GET, POST, PUT, DELETE routes for tasks',
-    completed: false,
-    createdAt: new Date().toISOString()
-  }
-];
-
-let nextId = 3;
+const Task = require('../models/Task');
 
 /**
  * GET /tasks
- * Description: Retrieve all tasks
+ * Description: Retrieve all tasks from MongoDB
  * Response: 200 OK
  */
-router.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    count: tasks.length,
-    data: tasks
-  });
+router.get('/', async (req, res, next) => {
+  try {
+    const tasks = await Task.find();
+    res.status(200).json({
+      success: true,
+      count: tasks.length,
+      data: tasks
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**
  * GET /tasks/:id
- * Description: Retrieve a single task by ID
+ * Description: Retrieve a single task by MongoDB ObjectId
  * Response: 200 OK or 404 Not Found
  */
-router.get('/:id', (req, res, next) => {
-  const id = parseInt(req.params.id, 10);
-  const task = tasks.find(t => t.id === id);
+router.get('/:id', async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
 
-  if (!task) {
-    return res.status(404).json({
-      success: false,
-      error: `Task with ID ${req.params.id} not found`
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: `Task with ID ${req.params.id} not found`
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: task
     });
+  } catch (err) {
+    next(err);
   }
-
-  res.status(200).json({
-    success: true,
-    data: task
-  });
 });
 
 /**
  * POST /tasks
- * Description: Create a new task
+ * Description: Create a new task in MongoDB
  * Response: 201 Created or 400 Bad Request
  */
-router.post('/', (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const { title, description, completed } = req.body;
 
-    // Validation: Title is required
-    if (!title || typeof title !== 'string' || title.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: 'Task title is required and must be a non-empty string'
-      });
-    }
-
-    const newTask = {
-      id: nextId++,
-      title: title.trim(),
-      description: description ? String(description).trim() : '',
-      completed: typeof completed === 'boolean' ? completed : false,
-      createdAt: new Date().toISOString()
-    };
-
-    tasks.push(newTask);
+    const newTask = await Task.create({
+      title,
+      description,
+      completed
+    });
 
     res.status(201).json({
       success: true,
@@ -95,49 +72,25 @@ router.post('/', (req, res, next) => {
 
 /**
  * PUT /tasks/:id
- * Description: Update an existing task by ID
+ * Description: Update an existing task by MongoDB ObjectId
  * Response: 200 OK, 400 Bad Request, or 404 Not Found
  */
-router.put('/:id', (req, res, next) => {
+router.put('/:id', async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    const taskIndex = tasks.findIndex(t => t.id === id);
+    const { title, description, completed } = req.body;
 
-    if (taskIndex === -1) {
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      { title, description, completed },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedTask) {
       return res.status(404).json({
         success: false,
         error: `Task with ID ${req.params.id} not found`
       });
     }
-
-    const { title, description, completed } = req.body;
-
-    // Validation: If title is provided, ensure it is non-empty
-    if (title !== undefined && (typeof title !== 'string' || title.trim() === '')) {
-      return res.status(400).json({
-        success: false,
-        error: 'Title must be a non-empty string if provided'
-      });
-    }
-
-    // Validation: If completed is provided, ensure it is boolean
-    if (completed !== undefined && typeof completed !== 'boolean') {
-      return res.status(400).json({
-        success: false,
-        error: 'Completed must be a boolean value if provided'
-      });
-    }
-
-    const existingTask = tasks[taskIndex];
-    const updatedTask = {
-      ...existingTask,
-      title: title !== undefined ? title.trim() : existingTask.title,
-      description: description !== undefined ? String(description).trim() : existingTask.description,
-      completed: completed !== undefined ? completed : existingTask.completed,
-      updatedAt: new Date().toISOString()
-    };
-
-    tasks[taskIndex] = updatedTask;
 
     res.status(200).json({
       success: true,
@@ -151,22 +104,19 @@ router.put('/:id', (req, res, next) => {
 
 /**
  * DELETE /tasks/:id
- * Description: Delete a task by ID
+ * Description: Delete a task by MongoDB ObjectId
  * Response: 200 OK or 404 Not Found
  */
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    const taskIndex = tasks.findIndex(t => t.id === id);
+    const deletedTask = await Task.findByIdAndDelete(req.params.id);
 
-    if (taskIndex === -1) {
+    if (!deletedTask) {
       return res.status(404).json({
         success: false,
         error: `Task with ID ${req.params.id} not found`
       });
     }
-
-    const deletedTask = tasks.splice(taskIndex, 1)[0];
 
     res.status(200).json({
       success: true,
