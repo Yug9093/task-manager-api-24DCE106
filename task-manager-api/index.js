@@ -5,6 +5,7 @@ const cors = require('cors');
 const loggerMiddleware = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
 const taskRoutes = require('./routes/taskRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,22 +24,28 @@ app.use(express.json());
 // 3. Custom Application-level Logging Middleware
 app.use(loggerMiddleware);
 
-// 3. Root Endpoint
+// 4. Root Endpoint & API Documentation
 app.get('/', (req, res) => {
   res.status(200).json({
-    message: 'Welcome to the Task Management RESTful API',
+    message: 'Welcome to the Task Management RESTful API with JWT Authentication',
     endpoints: {
-      getAllTasks: 'GET /tasks',
-      getTaskById: 'GET /tasks/:id',
-      createTask: 'POST /tasks',
-      updateTask: 'PUT /tasks/:id',
-      deleteTask: 'DELETE /tasks/:id',
+      register: 'POST /register or POST /auth/register',
+      login: 'POST /login or POST /auth/login',
+      getAllTasks: 'GET /tasks (Requires Bearer Token)',
+      getTaskById: 'GET /tasks/:id (Requires Bearer Token)',
+      createTask: 'POST /tasks (Requires Bearer Token)',
+      updateTask: 'PUT /tasks/:id (Requires Bearer Token)',
+      deleteTask: 'DELETE /tasks/:id (Requires Bearer Token)',
       testError: 'GET /test-error'
     }
   });
 });
 
-// 4. Express Router for /tasks
+// 5. Authentication Routes
+app.use('/auth', authRoutes);
+app.use('/', authRoutes);
+
+// 6. Protected Task Routes
 app.use('/tasks', taskRoutes);
 
 // Endpoint to simulate unhandled internal server error for global error handler testing
@@ -48,7 +55,7 @@ app.get('/test-error', (req, res, next) => {
   next(error);
 });
 
-// 5. 404 Handler for Undefined Routes
+// 7. 404 Handler for Undefined Routes
 app.use((req, res, next) => {
   res.status(404).json({
     success: false,
@@ -56,7 +63,7 @@ app.use((req, res, next) => {
   });
 });
 
-// 6. Global Error Handling Middleware (MUST BE LAST)
+// 8. Global Error Handling Middleware (MUST BE LAST)
 app.use(errorHandler);
 
 // Start Server
