@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  getTasks,
-  createTask,
-  updateTask,
-  deleteTask,
-  getStoredToken,
-  getStoredUser,
-  clearAuthData
-} from './api';
-import AuthForm from './components/AuthForm';
+import { getTasks, createTask, updateTask, deleteTask } from './api';
 import TaskForm from './components/TaskForm';
 import TaskCard from './components/TaskCard';
 import TaskFilter from './components/TaskFilter';
@@ -16,11 +7,8 @@ import EditTaskModal from './components/EditTaskModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(getStoredUser());
-  const [isAuthenticated, setIsAuthenticated] = useState(Boolean(getStoredToken()));
-
   const [tasks, setTasks] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [processingTaskId, setProcessingTaskId] = useState(null);
 
@@ -33,6 +21,7 @@ export default function App() {
   const [successMessage, setSuccessMessage] = useState('');
   const [filter, setFilter] = useState('all');
 
+  // Auto-dismissing success notice
   const notifySuccess = (msg) => {
     setSuccessMessage(msg);
     setTimeout(() => {
@@ -40,25 +29,8 @@ export default function App() {
     }, 3000);
   };
 
-  const handleLogout = () => {
-    clearAuthData();
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    setTasks([]);
-    notifySuccess('Logged out successfully');
-  };
-
-  const handleLoginSuccess = (user, token) => {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    setErrorMessage('');
-    notifySuccess('Signed in successfully');
-  };
-
-  // Fetch all tasks from MongoDB backend for the authenticated user
+  // Fetch all tasks from MongoDB backend
   const fetchTasks = useCallback(async () => {
-    if (!isAuthenticated) return;
-
     setIsLoading(true);
     setErrorMessage('');
     try {
@@ -72,25 +44,17 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error fetching tasks:', err);
-      if (err.status === 401) {
-        setIsAuthenticated(false);
-        setCurrentUser(null);
-        setErrorMessage('Your session has expired. Please sign in again.');
-      } else {
-        setErrorMessage(
-          err.message || 'Could not connect to backend server. Make sure MongoDB and Node server are running.'
-        );
-      }
+      setErrorMessage(
+        err.message || 'Could not connect to backend server. Make sure MongoDB and Node server are running.'
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchTasks();
-    }
-  }, [isAuthenticated, fetchTasks]);
+    fetchTasks();
+  }, [fetchTasks]);
 
   // Create Task (POST)
   const handleCreateTask = async (taskData) => {
@@ -104,9 +68,6 @@ export default function App() {
       return true;
     } catch (err) {
       console.error('Error creating task:', err);
-      if (err.status === 401) {
-        setIsAuthenticated(false);
-      }
       setErrorMessage(err.message || 'Failed to create task.');
       return false;
     } finally {
@@ -133,14 +94,13 @@ export default function App() {
       );
     } catch (err) {
       console.error('Error updating task:', err);
-      if (err.status === 401) setIsAuthenticated(false);
       setErrorMessage(err.message || 'Failed to update task.');
     } finally {
       setProcessingTaskId(null);
     }
   };
 
-  // Update Task Details (PUT)
+  // Update Task (PUT)
   const handleUpdateTask = async (id, taskData) => {
     setIsUpdating(true);
     setErrorMessage('');
@@ -154,7 +114,6 @@ export default function App() {
       return true;
     } catch (err) {
       console.error('Error saving task:', err);
-      if (err.status === 401) setIsAuthenticated(false);
       setErrorMessage(err.message || 'Failed to save changes.');
       return false;
     } finally {
@@ -175,7 +134,6 @@ export default function App() {
       setDeletingTask(null);
     } catch (err) {
       console.error('Error deleting task:', err);
-      if (err.status === 401) setIsAuthenticated(false);
       setErrorMessage(err.message || 'Failed to delete task.');
     } finally {
       setIsDeleting(false);
@@ -199,32 +157,7 @@ export default function App() {
     <div className="app-container">
       {/* Simple Header */}
       <header className="app-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div>
-            <h1 className="brand-title" style={{ textAlign: 'left' }}>Tasks</h1>
-            <p className="brand-subtitle" style={{ textAlign: 'left' }}>
-              JWT Authenticated • Node + MongoDB
-            </p>
-          </div>
-
-          {isAuthenticated && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              {currentUser?.email && (
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  {currentUser.email}
-                </span>
-              )}
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
-                onClick={handleLogout}
-              >
-                Sign Out
-              </button>
-            </div>
-          )}
-        </div>
+        <h1 className="brand-title">Tasks</h1>
       </header>
 
       {/* Error & Success Alerts */}
@@ -254,74 +187,67 @@ export default function App() {
         </div>
       )}
 
-      {/* Authentication Screen or Task App */}
-      {!isAuthenticated ? (
-        <AuthForm onLoginSuccess={handleLoginSuccess} />
-      ) : (
-        <>
-          {/* Task Creation Input */}
-          <TaskForm
-            onTaskCreated={handleCreateTask}
-            isSubmitting={isSubmitting}
-          />
+      {/* Task Creation Input */}
+      <TaskForm
+        onTaskCreated={handleCreateTask}
+        isSubmitting={isSubmitting}
+      />
 
-          {/* Filter Tabs */}
-          {tasks.length > 0 && (
-            <TaskFilter
-              filter={filter}
-              onFilterChange={setFilter}
-              counts={counts}
-            />
-          )}
-
-          {/* Task List or Empty/Loading States */}
-          {isLoading ? (
-            <div className="state-box">
-              <div className="spinner" style={{ marginBottom: '0.5rem' }} />
-              <div>Loading tasks...</div>
-            </div>
-          ) : tasks.length === 0 ? (
-            <div className="state-box">
-              No tasks yet. Add your first task above.
-            </div>
-          ) : filteredTasks.length === 0 ? (
-            <div className="state-box">
-              No {filter} tasks.
-            </div>
-          ) : (
-            <div className="task-list">
-              {filteredTasks.map((task) => (
-                <TaskCard
-                  key={task._id}
-                  task={task}
-                  onToggleStatus={handleToggleStatus}
-                  onEdit={setEditingTask}
-                  onDelete={setDeletingTask}
-                  isProcessing={processingTaskId === task._id}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Edit Modal */}
-          <EditTaskModal
-            task={editingTask}
-            isOpen={Boolean(editingTask)}
-            onClose={() => setEditingTask(null)}
-            onUpdate={handleUpdateTask}
-            isUpdating={isUpdating}
-          />
-
-          {/* Delete Confirmation Modal */}
-          <DeleteConfirmModal
-            isOpen={Boolean(deletingTask)}
-            taskTitle={deletingTask?.title || ''}
-            onConfirm={handleConfirmDelete}
-            onCancel={() => setDeletingTask(null)}
-            isDeleting={isDeleting}
-          />
-        </>
+      {/* Filter Tabs */}
+      {tasks.length > 0 && (
+        <TaskFilter
+          filter={filter}
+          onFilterChange={setFilter}
+          counts={counts}
+        />
       )}
+
+      {/* Task List or States */}
+      {isLoading ? (
+        <div className="state-box">
+          <div className="spinner" style={{ marginBottom: '0.5rem' }} />
+          <div>Loading tasks...</div>
+        </div>
+      ) : tasks.length === 0 ? (
+        <div className="state-box">
+          No tasks yet. Add your first task above.
+        </div>
+      ) : filteredTasks.length === 0 ? (
+        <div className="state-box">
+          No {filter} tasks.
+        </div>
+      ) : (
+        <div className="task-list">
+          {filteredTasks.map((task) => (
+            <TaskCard
+              key={task._id}
+              task={task}
+              onToggleStatus={handleToggleStatus}
+              onEdit={setEditingTask}
+              onDelete={setDeletingTask}
+              isProcessing={processingTaskId === task._id}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      <EditTaskModal
+        task={editingTask}
+        isOpen={Boolean(editingTask)}
+        onClose={() => setEditingTask(null)}
+        onUpdate={handleUpdateTask}
+        isUpdating={isUpdating}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingTask)}
+        taskTitle={deletingTask?.title || ''}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeletingTask(null)}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

@@ -1,23 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const Task = require('../models/Task');
-const auth = require('../middleware/auth');
-const { validateTask } = require('../middleware/validate');
-
-// Protect all /tasks routes with JWT authentication middleware
-router.use(auth);
 
 /**
  * GET /tasks
- * Description: Retrieve tasks from MongoDB for the authenticated user
+ * Description: Retrieve all tasks from MongoDB
  * Response: 200 OK
  */
 router.get('/', async (req, res, next) => {
   try {
-    // Return tasks created by this user or general tasks
-    const filter = req.user?.id ? { $or: [{ user: req.user.id }, { user: null }] } : {};
-    const tasks = await Task.find(filter).sort({ createdAt: -1 });
-    
+    const tasks = await Task.find();
     res.status(200).json({
       success: true,
       count: tasks.length,
@@ -55,18 +47,17 @@ router.get('/:id', async (req, res, next) => {
 
 /**
  * POST /tasks
- * Description: Create a new task in MongoDB with validation and user association
+ * Description: Create a new task in MongoDB
  * Response: 201 Created or 400 Bad Request
  */
-router.post('/', validateTask, async (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const { title, description, completed } = req.body;
 
     const newTask = await Task.create({
-      title: title.trim(),
-      description: description ? description.trim() : '',
-      completed: Boolean(completed),
-      user: req.user?.id || null
+      title,
+      description,
+      completed
     });
 
     res.status(201).json({
@@ -81,21 +72,16 @@ router.post('/', validateTask, async (req, res, next) => {
 
 /**
  * PUT /tasks/:id
- * Description: Update an existing task by MongoDB ObjectId with validation
+ * Description: Update an existing task by MongoDB ObjectId
  * Response: 200 OK, 400 Bad Request, or 404 Not Found
  */
-router.put('/:id', validateTask, async (req, res, next) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const { title, description, completed } = req.body;
 
-    const updateData = {};
-    if (title !== undefined) updateData.title = title.trim();
-    if (description !== undefined) updateData.description = description.trim();
-    if (completed !== undefined) updateData.completed = Boolean(completed);
-
     const updatedTask = await Task.findByIdAndUpdate(
       req.params.id,
-      updateData,
+      { title, description, completed },
       { new: true, runValidators: true }
     );
 
