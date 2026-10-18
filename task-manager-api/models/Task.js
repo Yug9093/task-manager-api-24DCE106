@@ -16,12 +16,16 @@ const taskSchema = new mongoose.Schema({
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
+    required: [true, 'Task must belong to a user']
   },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+// Index for efficient retrieval of user-specific tasks ordered by date
+taskSchema.index({ user: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Task', taskSchema);

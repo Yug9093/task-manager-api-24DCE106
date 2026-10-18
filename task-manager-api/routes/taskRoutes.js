@@ -9,14 +9,15 @@ router.use(auth);
 
 /**
  * GET /tasks
- * Description: Retrieve tasks from MongoDB for the authenticated user
+ * Description: Retrieve tasks from MongoDB for the authenticated user only
  * Response: 200 OK
  */
 router.get('/', async (req, res, next) => {
   try {
-    // Return tasks created by this user or general tasks
-    const filter = req.user?.id ? { $or: [{ user: req.user.id }, { user: null }] } : {};
-    const tasks = await Task.find(filter).sort({ createdAt: -1 });
+    // Return only tasks owned by the authenticated user
+    const tasks = await Task.find({ user: req.user.id })
+      .populate('user', 'email')
+      .sort({ createdAt: -1 });
     
     res.status(200).json({
       success: true,
@@ -30,12 +31,15 @@ router.get('/', async (req, res, next) => {
 
 /**
  * GET /tasks/:id
- * Description: Retrieve a single task by MongoDB ObjectId
+ * Description: Retrieve a single task by MongoDB ObjectId for the authenticated user
  * Response: 200 OK or 404 Not Found
  */
 router.get('/:id', async (req, res, next) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findOne({
+      _id: req.params.id,
+      user: req.user.id
+    }).populate('user', 'email');
 
     if (!task) {
       return res.status(404).json({
@@ -55,7 +59,7 @@ router.get('/:id', async (req, res, next) => {
 
 /**
  * POST /tasks
- * Description: Create a new task in MongoDB with validation and user association
+ * Description: Create a new task in MongoDB strictly linked to the authenticated user
  * Response: 201 Created or 400 Bad Request
  */
 router.post('/', validateTask, async (req, res, next) => {
@@ -66,13 +70,15 @@ router.post('/', validateTask, async (req, res, next) => {
       title: title.trim(),
       description: description ? description.trim() : '',
       completed: Boolean(completed),
-      user: req.user?.id || null
+      user: req.user.id
     });
+
+    const populatedTask = await Task.findById(newTask._id).populate('user', 'email');
 
     res.status(201).json({
       success: true,
       message: 'Task created successfully',
-      data: newTask
+      data: populatedTask || newTask
     });
   } catch (err) {
     next(err);
@@ -81,7 +87,7 @@ router.post('/', validateTask, async (req, res, next) => {
 
 /**
  * PUT /tasks/:id
- * Description: Update an existing task by MongoDB ObjectId with validation
+ * Description: Update an existing task owned by the authenticated user
  * Response: 200 OK, 400 Bad Request, or 404 Not Found
  */
 router.put('/:id', validateTask, async (req, res, next) => {
@@ -93,11 +99,11 @@ router.put('/:id', validateTask, async (req, res, next) => {
     if (description !== undefined) updateData.description = description.trim();
     if (completed !== undefined) updateData.completed = Boolean(completed);
 
-    const updatedTask = await Task.findByIdAndUpdate(
-      req.params.id,
+    const updatedTask = await Task.findOneAndUpdate(
+      { _id: req.params.id, user: req.user.id },
       updateData,
       { new: true, runValidators: true }
-    );
+    ).populate('user', 'email');
 
     if (!updatedTask) {
       return res.status(404).json({
@@ -118,12 +124,15 @@ router.put('/:id', validateTask, async (req, res, next) => {
 
 /**
  * DELETE /tasks/:id
- * Description: Delete a task by MongoDB ObjectId
+ * Description: Delete a task owned by the authenticated user
  * Response: 200 OK or 404 Not Found
  */
 router.delete('/:id', async (req, res, next) => {
   try {
-    const deletedTask = await Task.findByIdAndDelete(req.params.id);
+    const deletedTask = await Task.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user.id
+    });
 
     if (!deletedTask) {
       return res.status(404).json({

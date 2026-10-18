@@ -247,8 +247,8 @@ const validateTask = (req, res, next) => {
 
 ---
 
-### Step 8: Protecting Task Routes (`routes/taskRoutes.js`)
-All task routes are guarded with `router.use(auth)` and `validateTask`:
+### Step 8: Protecting Task Routes & Enforcing User Association (`routes/taskRoutes.js`)
+All task routes are guarded with `router.use(auth)` and `validateTask`. Each operation strictly associates and isolates tasks by the authenticated user (`req.user.id`):
 ```javascript
 const router = express.Router();
 const Task = require('../models/Task');
@@ -258,23 +258,54 @@ const { validateTask } = require('../middleware/validate');
 // Apply auth middleware to all task endpoints
 router.use(auth);
 
-// GET /tasks
+// GET /tasks - Only retrieve tasks created by the authenticated user
 router.get('/', async (req, res, next) => {
-  const filter = req.user?.id ? { $or: [{ user: req.user.id }, { user: null }] } : {};
-  const tasks = await Task.find(filter).sort({ createdAt: -1 });
+  const tasks = await Task.find({ user: req.user.id })
+    .populate('user', 'email')
+    .sort({ createdAt: -1 });
   res.status(200).json({ success: true, count: tasks.length, data: tasks });
 });
 
-// POST /tasks with validateTask
+// POST /tasks - Strictly bind new tasks to the authenticated user ID
 router.post('/', validateTask, async (req, res, next) => {
   const { title, description, completed } = req.body;
   const newTask = await Task.create({
     title: title.trim(),
     description: description ? description.trim() : '',
     completed: Boolean(completed),
-    user: req.user?.id || null
+    user: req.user.id
   });
-  res.status(201).json({ success: true, message: 'Task created successfully', data: newTask });
+  const populatedTask = await Task.findById(newTask._id).populate('user', 'email');
+  res.status(201).json({ success: true, message: 'Task created successfully', data: populatedTask || newTask });
+});
+
+// PUT /tasks/:id - Only allow updating tasks owned by the authenticated user
+router.put('/:id', validateTask, async (req, res, next) => {
+  const { title, description, completed } = req.body;
+  const updateData = {};
+  if (title !== undefined) updateData.title = title.trim();
+  if (description !== undefined) updateData.description = description.trim();
+  if (completed !== undefined) updateData.completed = Boolean(completed);
+
+  const updatedTask = await Task.findOneAndUpdate(
+    { _id: req.params.id, user: req.user.id },
+    updateData,
+    { new: true, runValidators: true }
+  ).populate('user', 'email');
+
+  if (!updatedTask) {
+    return res.status(404).json({ success: false, error: `Task with ID ${req.params.id} not found` });
+  }
+  res.status(200).json({ success: true, message: 'Task updated successfully', data: updatedTask });
+});
+
+// DELETE /tasks/:id - Only allow deleting tasks owned by the authenticated user
+router.delete('/:id', async (req, res, next) => {
+  const deletedTask = await Task.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  if (!deletedTask) {
+    return res.status(404).json({ success: false, error: `Task with ID ${req.params.id} not found` });
+  }
+  res.status(200).json({ success: true, message: 'Task deleted successfully', data: deletedTask });
 });
 ```
 
