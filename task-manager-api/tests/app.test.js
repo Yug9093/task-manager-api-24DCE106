@@ -19,10 +19,10 @@ describe('Task Management API Tests (CI Pipeline)', () => {
     expect(res.body.message).toContain('Welcome to the Task Management RESTful API');
   });
 
-  // Test 2: Deliberately broken test for Practical 12 Step 5 demonstration
+  // Test 2: Fixed test - Verify GET /tasks endpoint returns status 200 (Practical 12 Step 6)
   test('GET /tasks returns 200', async () => {
     const res = await request(app).get('/tasks');
-    // Deliberately broken assertion to trigger CI pipeline failure (Red X)
-    expect(res.statusCode).toBe(999);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
   });
 });
