@@ -69,10 +69,13 @@ app.use((req, res, next) => {
 // 8. Global Error Handling Middleware (MUST BE LAST)
 app.use(errorHandler);
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`Task Manager API Server Running`);
-  console.log(`URL: http://localhost:${PORT}`);
-});
+// Start Server (only when not in test environment)
+let server;
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(PORT, () => {
+    console.log(`Task Manager API Server Running`);
+    console.log(`URL: http://localhost:${PORT}`);
+  });
+}
 
 module.exports = app;

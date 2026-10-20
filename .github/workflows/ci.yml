@@ -1,0 +1,41 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build & Run Automated Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+
+    defaults:
+      run:
+        working-directory: ./task-manager-api
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Automated Tests (Jest & Supertest)
+        env:
+          MONGO_URI: mongodb://127.0.0.1:27017/taskDB_test
+          JWT_SECRET: ci_secret_key_taskflow_test
+          NODE_ENV: test
+        run: npm test

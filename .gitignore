@@ -1,0 +1,20 @@
+# Node dependencies
+node_modules/
+task-manager-api/node_modules/
+frontend/node_modules/
+
+# Production build outputs
+dist/
+frontend/dist/
+
+# Environment files
+.env
+task-manager-api/.env
+
+# Logs and system files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
