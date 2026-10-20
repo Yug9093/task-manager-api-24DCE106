@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   getTasks,
   createTask,
@@ -9,13 +8,12 @@ import {
   getStoredUser,
   clearAuthData
 } from './api';
-import Navbar from './components/Navbar';
-import LoadingFallback from './components/LoadingFallback';
-
-// Route-based code splitting using React.lazy()
-const Home = lazy(() => import('./pages/Home'));
-const Projects = lazy(() => import('./pages/Projects'));
-const Contact = lazy(() => import('./pages/Contact'));
+import AuthForm from './components/AuthForm';
+import TaskForm from './components/TaskForm';
+import TaskCard from './components/TaskCard';
+import TaskFilter from './components/TaskFilter';
+import EditTaskModal from './components/EditTaskModal';
+import DeleteConfirmModal from './components/DeleteConfirmModal';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(getStoredUser());
@@ -25,6 +23,11 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [processingTaskId, setProcessingTaskId] = useState(null);
+
+  const [editingTask, setEditingTask] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [deletingTask, setDeletingTask] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -139,6 +142,7 @@ export default function App() {
 
   // Update Task Details (PUT)
   const handleUpdateTask = async (id, taskData) => {
+    setIsUpdating(true);
     setErrorMessage('');
     try {
       const response = await updateTask(id, taskData);
@@ -153,98 +157,171 @@ export default function App() {
       if (err.status === 401) setIsAuthenticated(false);
       setErrorMessage(err.message || 'Failed to save changes.');
       return false;
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  // Delete Task (DELETE)
-  const handleDeleteTask = async (id) => {
+  // Confirm Delete (DELETE)
+  const handleConfirmDelete = async () => {
+    if (!deletingTask) return;
+    const id = deletingTask._id;
+    setIsDeleting(true);
     setErrorMessage('');
     try {
       await deleteTask(id);
       setTasks((prev) => prev.filter((t) => t._id !== id));
       notifySuccess('Task deleted');
-      return true;
+      setDeletingTask(null);
     } catch (err) {
       console.error('Error deleting task:', err);
       if (err.status === 401) setIsAuthenticated(false);
       setErrorMessage(err.message || 'Failed to delete task.');
-      return false;
+    } finally {
+      setIsDeleting(false);
     }
   };
 
+  // Filter tasks
+  const filteredTasks = tasks.filter((task) => {
+    if (filter === 'active') return !task.completed;
+    if (filter === 'completed') return task.completed;
+    return true;
+  });
+
+  const counts = {
+    all: tasks.length,
+    active: tasks.filter((t) => !t.completed).length,
+    completed: tasks.filter((t) => t.completed).length,
+  };
+
   return (
-    <BrowserRouter>
-      <div className="app-shell">
-        <Navbar
-          currentUser={currentUser}
-          isAuthenticated={isAuthenticated}
-          onLogout={handleLogout}
-        />
+    <div className="app-container">
+      {/* Simple Header */}
+      <header className="app-header">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h1 className="brand-title" style={{ textAlign: 'left' }}>Tasks</h1>
+            <p className="brand-subtitle" style={{ textAlign: 'left' }}>
+              JWT Authenticated • Node + MongoDB
+            </p>
+          </div>
 
-        <main className="app-container">
-          {/* Error & Success Alerts */}
-          {errorMessage && (
-            <div className="alert alert-danger">
-              <span>{errorMessage}</span>
+          {isAuthenticated && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {currentUser?.email && (
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  {currentUser.email}
+                </span>
+              )}
               <button
                 type="button"
-                className="btn-icon"
-                onClick={() => setErrorMessage('')}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+                onClick={handleLogout}
               >
-                ✕
+                Sign Out
               </button>
             </div>
           )}
+        </div>
+      </header>
 
-          {successMessage && (
-            <div className="alert alert-success">
-              <span>{successMessage}</span>
-              <button
-                type="button"
-                className="btn-icon"
-                onClick={() => setSuccessMessage('')}
-              >
-                ✕
-              </button>
+      {/* Error & Success Alerts */}
+      {errorMessage && (
+        <div className="alert alert-danger">
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => setErrorMessage('')}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="alert alert-success">
+          <span>{successMessage}</span>
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => setSuccessMessage('')}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Authentication Screen or Task App */}
+      {!isAuthenticated ? (
+        <AuthForm onLoginSuccess={handleLoginSuccess} />
+      ) : (
+        <>
+          {/* Task Creation Input */}
+          <TaskForm
+            onTaskCreated={handleCreateTask}
+            isSubmitting={isSubmitting}
+          />
+
+          {/* Filter Tabs */}
+          {tasks.length > 0 && (
+            <TaskFilter
+              filter={filter}
+              onFilterChange={setFilter}
+              counts={counts}
+            />
+          )}
+
+          {/* Task List or Empty/Loading States */}
+          {isLoading ? (
+            <div className="state-box">
+              <div className="spinner" style={{ marginBottom: '0.5rem' }} />
+              <div>Loading tasks...</div>
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="state-box">
+              No tasks yet. Add your first task above.
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            <div className="state-box">
+              No {filter} tasks.
+            </div>
+          ) : (
+            <div className="task-list">
+              {filteredTasks.map((task) => (
+                <TaskCard
+                  key={task._id}
+                  task={task}
+                  onToggleStatus={handleToggleStatus}
+                  onEdit={setEditingTask}
+                  onDelete={setDeletingTask}
+                  isProcessing={processingTaskId === task._id}
+                />
+              ))}
             </div>
           )}
 
-          {/* Lazy-Loaded Route Components Wrapped in Suspense */}
-          <Suspense fallback={<LoadingFallback message="Loading view component..." />}>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <Home
-                    currentUser={currentUser}
-                    isAuthenticated={isAuthenticated}
-                    tasks={tasks}
-                    isLoading={isLoading}
-                    isSubmitting={isSubmitting}
-                    processingTaskId={processingTaskId}
-                    filter={filter}
-                    setFilter={setFilter}
-                    onLoginSuccess={handleLoginSuccess}
-                    onCreateTask={handleCreateTask}
-                    onToggleStatus={handleToggleStatus}
-                    onUpdateTask={handleUpdateTask}
-                    onDeleteTask={handleDeleteTask}
-                  />
-                }
-              />
-              <Route
-                path="/projects"
-                element={<Projects tasks={tasks} />}
-              />
-              <Route
-                path="/contact"
-                element={<Contact currentUser={currentUser} />}
-              />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </main>
-      </div>
-    </BrowserRouter>
+          {/* Edit Modal */}
+          <EditTaskModal
+            task={editingTask}
+            isOpen={Boolean(editingTask)}
+            onClose={() => setEditingTask(null)}
+            onUpdate={handleUpdateTask}
+            isUpdating={isUpdating}
+          />
+
+          {/* Delete Confirmation Modal */}
+          <DeleteConfirmModal
+            isOpen={Boolean(deletingTask)}
+            taskTitle={deletingTask?.title || ''}
+            onConfirm={handleConfirmDelete}
+            onCancel={() => setDeletingTask(null)}
+            isDeleting={isDeleting}
+          />
+        </>
+      )}
+    </div>
   );
 }
