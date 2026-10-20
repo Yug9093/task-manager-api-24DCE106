@@ -1,6 +1,6 @@
-# TaskFlow — Full-Stack Task Manager (Practicals 7, 8, 9, 10 & 11)
+# TaskFlow — Full-Stack Task Manager (Practicals 7, 8, 9, 10, 11 & 12)
 
-A full-stack Task Management application connecting a **React (Vite)** frontend with code splitting (Practical 8) to an **Express.js + MongoDB (Mongoose)** backend featuring **JWT Authentication & Input Validation** (Practical 7), **In-Memory Caching with `node-cache` & Query Optimization** (Practical 9), **Asynchronous Event-Driven Architecture with Node.js `EventEmitter`** (Practical 10), and **Containerization with Docker & Docker Compose** (Practical 11).
+A full-stack Task Management application connecting a **React (Vite)** frontend with code splitting (Practical 8) to an **Express.js + MongoDB (Mongoose)** backend featuring **JWT Authentication & Input Validation** (Practical 7), **In-Memory Caching with `node-cache` & Query Optimization** (Practical 9), **Asynchronous Event-Driven Architecture with Node.js `EventEmitter`** (Practical 10), **Containerization with Docker & Docker Compose** (Practical 11), and an **Automated CI/CD Pipeline with GitHub Actions** (Practical 12).
 
 ---
 
@@ -48,14 +48,32 @@ Client Request (Authorization: Bearer <token>)
 - **Persistent Storage**: MongoDB database data is preserved across restarts via the named volume `mongo-data`.
 - **Single-Command Launch**: Complete stack boots with `docker compose up --build`.
 
+### 7. Automated CI/CD Pipeline with GitHub Actions (Practical 12)
+- **Declarative CI Workflow (`.github/workflows/ci.yml`)**: Automatically triggers on every push and pull request to the `main` branch.
+- **Ephemeral MongoDB Service Container**: Provisions `mongo:latest` on port 27017 within the `ubuntu-latest` runner for seamless database integration testing.
+- **Automated Test Suite**: Executes unit & integration tests using `jest` and `supertest` to validate `/` and `/tasks` endpoints.
+- **Automated Quality Gates**: Deliberately tested failure detection (Red X on broken assertions) and successful verification on fixes (Green Checkmark).
+- **Practical 12 Documentation**: See [PRACTICAL_12_DOCUMENTATION.md](file:///c:/Users/yugpa/OneDrive/Documents/GitHub/task-manager-api-24DCE106/PRACTICAL_12_DOCUMENTATION.md) for full execution logs and live GitHub run links.
+
 ---
 
 ## 📂 Project Structure
 
 ```
 task-manager-api-24DCE106/
+├── .github/
+│   └── workflows/
+│       └── ci.yml              # GitHub Actions CI workflow (Practical 12)
 ├── docker-compose.yml          # Multi-container orchestration (Practical 11)
+├── PRACTICAL_7_DOCUMENTATION.md
+├── PRACTICAL_8_DOCUMENTATION.md
+├── PRACTICAL_9_DOCUMENTATION.md
+├── PRACTICAL_10_DOCUMENTATION.md
+├── PRACTICAL_11_DOCUMENTATION.md
+├── PRACTICAL_12_DOCUMENTATION.md # CI/CD Pipeline documentation & results
 ├── task-manager-api/
+│   ├── tests/
+│   │   └── app.test.js         # Jest & Supertest integration tests (Practical 12)
 │   ├── models/
 │   │   ├── User.js             # User Schema (email, hashed password)
 │   │   └── Task.js             # Task Schema with user reference
