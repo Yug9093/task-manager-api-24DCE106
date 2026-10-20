@@ -4,6 +4,7 @@ const Task = require('../models/Task');
 const auth = require('../middleware/auth');
 const { validateTask } = require('../middleware/validate');
 const cache = require('../cache');
+const taskEvents = require('../events');
 
 // Protect all /tasks routes with JWT authentication middleware
 router.use(auth);
@@ -102,11 +103,20 @@ router.post('/', validateTask, async (req, res, next) => {
     cache.del(`all_tasks_${req.user.id}`);
     cache.del('all_tasks');
 
+    const createdTask = populatedTask || newTask;
+
+    // Step 3: Log API response timestamp and respond immediately
+    const responseTime = new Date().toISOString();
+    console.log(`[API] Response sent at ${responseTime}`);
+
     res.status(201).json({
       success: true,
       message: 'Task created successfully',
-      data: populatedTask || newTask
+      data: createdTask
     });
+
+    // Step 3: Emit 'task-created' event asynchronously without blocking response
+    taskEvents.emit('task-created', createdTask);
   } catch (err) {
     next(err);
   }

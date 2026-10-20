@@ -7,6 +7,9 @@ const errorHandler = require('./middleware/errorHandler');
 const taskRoutes = require('./routes/taskRoutes');
 const authRoutes = require('./routes/authRoutes');
 
+// Load Event Listeners for background asynchronous notification handling (Practical 10)
+require('./listeners');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 

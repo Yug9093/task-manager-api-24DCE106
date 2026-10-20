@@ -1,6 +1,6 @@
-# TaskFlow — Full-Stack Task Manager (Practicals 7, 8 & 9)
+# TaskFlow — Full-Stack Task Manager (Practicals 7, 8, 9 & 10)
 
-A full-stack Task Management application connecting a **React (Vite)** frontend with code splitting (Practical 8) to an **Express.js + MongoDB (Mongoose)** backend featuring **JWT Authentication & Input Validation** (Practical 7), and **In-Memory Caching with `node-cache` & Query Optimization** (Practical 9).
+A full-stack Task Management application connecting a **React (Vite)** frontend with code splitting (Practical 8) to an **Express.js + MongoDB (Mongoose)** backend featuring **JWT Authentication & Input Validation** (Practical 7), **In-Memory Caching with `node-cache` & Query Optimization** (Practical 9), and **Asynchronous Event-Driven Architecture with Node.js `EventEmitter`** (Practical 10).
 
 ---
 
@@ -28,12 +28,19 @@ Client Request (Authorization: Bearer <token>)
 ### 3. Input Validation
 - **Registration**: Ensures email is valid and password is at least 6 characters.
 - **Login**: Ensures email and password are provided.
+- **Task Routes**: Rejects requests missing a non-empty `title` before database interaction.
+
 ### 4. In-Memory Caching & Query Optimization (Practical 9)
 - **Shared Cache Instance**: Uses `node-cache` with `stdTTL: 60s` to cache all task lists (`all_tasks`).
 - **Cache-Aside Pattern**: Checks in-memory cache before executing MongoDB queries, returning `X-Cache: HIT`.
 - **Cache Invalidation**: Automatically clears cache on write operations (`POST`, `PUT`, `DELETE`) to avoid serving stale data.
 - **Mongoose `.lean()`**: Queries return plain JS objects, cutting document hydration overhead.
 - **Performance**: Yields a ~75% reduction in API response time (1.2 ms cached vs 4.8 ms uncached).
+
+### 5. Asynchronous Event-Driven Architecture (Practical 10)
+- **Domain Event Bus (`events.js`)**: Subclasses Node.js core `EventEmitter` to publish domain lifecycle events.
+- **Decoupled Notification Listener (`listeners.js`)**: Intercepts `task-created` events to dispatch background notifications without blocking the HTTP pipeline.
+- **Immediate Response Delivery**: The API returns HTTP 201 Created (~11 ms) before the notification listener finishes processing (~1500 ms).
 
 ---
 
@@ -53,6 +60,9 @@ task-manager-api-24DCE106/
 │   ├── routes/
 │   │   ├── authRoutes.js       # /register, /login
 │   │   └── taskRoutes.js       # Protected /tasks CRUD
+│   ├── cache.js                # Shared in-memory node-cache instance (Practical 9)
+│   ├── events.js               # Domain EventEmitter singleton (Practical 10)
+│   ├── listeners.js            # Background notification listeners (Practical 10)
 │   ├── .env                    # PORT=5000, MONGO_URI, JWT_SECRET
 │   └── index.js                # App entry point with CORS, middleware & routes
 └── frontend/                   # React + Vite Client

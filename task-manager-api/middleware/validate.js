@@ -69,6 +69,12 @@ const validateLogin = (req, res, next) => {
  * Validate Task Creation / Update payload
  */
 const validateTask = (req, res, next) => {
+  if (!req.body) {
+    return res.status(400).json({
+      success: false,
+      error: 'Request body is required'
+    });
+  }
   const { title } = req.body;
 
   // Title is strictly required when creating a new task (POST)
