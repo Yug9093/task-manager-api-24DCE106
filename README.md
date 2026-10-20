@@ -1,6 +1,6 @@
-# TaskFlow — Full-Stack Task Manager (Practicals 7, 8, 9 & 10)
+# TaskFlow — Full-Stack Task Manager (Practicals 7, 8, 9, 10 & 11)
 
-A full-stack Task Management application connecting a **React (Vite)** frontend with code splitting (Practical 8) to an **Express.js + MongoDB (Mongoose)** backend featuring **JWT Authentication & Input Validation** (Practical 7), **In-Memory Caching with `node-cache` & Query Optimization** (Practical 9), and **Asynchronous Event-Driven Architecture with Node.js `EventEmitter`** (Practical 10).
+A full-stack Task Management application connecting a **React (Vite)** frontend with code splitting (Practical 8) to an **Express.js + MongoDB (Mongoose)** backend featuring **JWT Authentication & Input Validation** (Practical 7), **In-Memory Caching with `node-cache` & Query Optimization** (Practical 9), **Asynchronous Event-Driven Architecture with Node.js `EventEmitter`** (Practical 10), and **Containerization with Docker & Docker Compose** (Practical 11).
 
 ---
 
@@ -42,12 +42,19 @@ Client Request (Authorization: Bearer <token>)
 - **Decoupled Notification Listener (`listeners.js`)**: Intercepts `task-created` events to dispatch background notifications without blocking the HTTP pipeline.
 - **Immediate Response Delivery**: The API returns HTTP 201 Created (~11 ms) before the notification listener finishes processing (~1500 ms).
 
+### 6. Containerization with Docker & Docker Compose (Practical 11)
+- **Multi-Container Architecture**: Orchestrates `frontend` (port 5173), `backend` (port 5000), and `mongodb` (port 27017) via `docker-compose.yml`.
+- **Bridge Network**: Services communicate seamlessly over `app-network` via Docker internal DNS.
+- **Persistent Storage**: MongoDB database data is preserved across restarts via the named volume `mongo-data`.
+- **Single-Command Launch**: Complete stack boots with `docker compose up --build`.
+
 ---
 
 ## 📂 Project Structure
 
 ```
 task-manager-api-24DCE106/
+├── docker-compose.yml          # Multi-container orchestration (Practical 11)
 ├── task-manager-api/
 │   ├── models/
 │   │   ├── User.js             # User Schema (email, hashed password)
@@ -63,9 +70,13 @@ task-manager-api-24DCE106/
 │   ├── cache.js                # Shared in-memory node-cache instance (Practical 9)
 │   ├── events.js               # Domain EventEmitter singleton (Practical 10)
 │   ├── listeners.js            # Background notification listeners (Practical 10)
+│   ├── Dockerfile              # Backend containerization (Practical 11)
+│   ├── .dockerignore           # Excluded files for backend image
 │   ├── .env                    # PORT=5000, MONGO_URI, JWT_SECRET
 │   └── index.js                # App entry point with CORS, middleware & routes
 └── frontend/                   # React + Vite Client
+    ├── Dockerfile              # Frontend containerization (Practical 11)
+    ├── .dockerignore           # Excluded files for frontend image
     └── src/
         ├── api.js              # Central API client with JWT storage & Bearer headers
         ├── components/
