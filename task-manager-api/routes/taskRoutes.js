@@ -3,27 +3,48 @@ const router = express.Router();
 const Task = require('../models/Task');
 const auth = require('../middleware/auth');
 const { validateTask } = require('../middleware/validate');
+const cache = require('../cache');
 
 // Protect all /tasks routes with JWT authentication middleware
 router.use(auth);
 
 /**
  * GET /tasks
- * Description: Retrieve tasks from MongoDB for the authenticated user only
- * Response: 200 OK
+ * Description: Retrieve tasks from cache if present; otherwise query MongoDB and cache results
+ * Response: 200 OK (with X-Cache: HIT or MISS header)
  */
 router.get('/', async (req, res, next) => {
   try {
-    // Return only tasks owned by the authenticated user
+    // Isolate cache key strictly per authenticated user so users never share task data
+    const cacheKey = `tasks_${req.user.id}`;
+
+    // 1. Step 3: Check user-specific cache first
+    // Note: To temporarily disable caching for manual lab comparison, comment out this block:
+    if (req.query.noCache !== 'true') {
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        res.set('X-Cache', 'HIT');
+        return res.status(200).json(cached);
+      }
+    }
+
+    // 2. Cache MISS: Query MongoDB strictly for the authenticated user
     const tasks = await Task.find({ user: req.user.id })
       .populate('user', 'email')
-      .sort({ createdAt: -1 });
-    
-    res.status(200).json({
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const responsePayload = {
       success: true,
       count: tasks.length,
       data: tasks
-    });
+    };
+
+    // 3. Store only in this user's cache with 60-second TTL
+    cache.set(cacheKey, responsePayload);
+
+    res.set('X-Cache', 'MISS');
+    res.status(200).json(responsePayload);
   } catch (err) {
     next(err);
   }
@@ -60,6 +81,7 @@ router.get('/:id', async (req, res, next) => {
 /**
  * POST /tasks
  * Description: Create a new task in MongoDB strictly linked to the authenticated user
+ * Cache Behavior: Invalidates cached task list to prevent serving stale data
  * Response: 201 Created or 400 Bad Request
  */
 router.post('/', validateTask, async (req, res, next) => {
@@ -75,6 +97,11 @@ router.post('/', validateTask, async (req, res, next) => {
 
     const populatedTask = await Task.findById(newTask._id).populate('user', 'email');
 
+    // Invalidate user's cache on write operation (POST)
+    cache.del(`tasks_${req.user.id}`);
+    cache.del(`all_tasks_${req.user.id}`);
+    cache.del('all_tasks');
+
     res.status(201).json({
       success: true,
       message: 'Task created successfully',
@@ -88,6 +115,7 @@ router.post('/', validateTask, async (req, res, next) => {
 /**
  * PUT /tasks/:id
  * Description: Update an existing task owned by the authenticated user
+ * Cache Behavior: Invalidates cached task list to ensure latest data is returned
  * Response: 200 OK, 400 Bad Request, or 404 Not Found
  */
 router.put('/:id', validateTask, async (req, res, next) => {
@@ -102,7 +130,7 @@ router.put('/:id', validateTask, async (req, res, next) => {
     const updatedTask = await Task.findOneAndUpdate(
       { _id: req.params.id, user: req.user.id },
       updateData,
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).populate('user', 'email');
 
     if (!updatedTask) {
@@ -111,6 +139,11 @@ router.put('/:id', validateTask, async (req, res, next) => {
         error: `Task with ID ${req.params.id} not found`
       });
     }
+
+    // Invalidate user's cache on write operation (PUT)
+    cache.del(`tasks_${req.user.id}`);
+    cache.del(`all_tasks_${req.user.id}`);
+    cache.del('all_tasks');
 
     res.status(200).json({
       success: true,
@@ -125,6 +158,7 @@ router.put('/:id', validateTask, async (req, res, next) => {
 /**
  * DELETE /tasks/:id
  * Description: Delete a task owned by the authenticated user
+ * Cache Behavior: Invalidates cached task list to ensure deleted item is not served
  * Response: 200 OK or 404 Not Found
  */
 router.delete('/:id', async (req, res, next) => {
@@ -140,6 +174,11 @@ router.delete('/:id', async (req, res, next) => {
         error: `Task with ID ${req.params.id} not found`
       });
     }
+
+    // Invalidate user's cache on write operation (DELETE)
+    cache.del(`tasks_${req.user.id}`);
+    cache.del(`all_tasks_${req.user.id}`);
+    cache.del('all_tasks');
 
     res.status(200).json({
       success: true,
