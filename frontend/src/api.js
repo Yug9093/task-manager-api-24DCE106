@@ -142,4 +142,31 @@ export const deleteTask = async (id) => {
   return handleResponse(res, 'Failed to delete task');
 };
 
+/**
+ * Generate an AI task description using Google Gemini API via backend (Practical 13)
+ * Gracefully handles failures so callers can display fallback messages without crashing.
+ */
+export const generateAiDescription = async (title) => {
+  try {
+    const res = await fetch(`${BASE_URL}/api/ai/generate-description`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.warn('AI API network or parsing error:', err);
+    return {
+      description: '',
+      fallback: true,
+      error: err.message,
+      message: 'Network error connecting to AI service. You can write your description manually.',
+    };
+  }
+};
+
 export { BASE_URL };
+

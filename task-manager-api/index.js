@@ -6,6 +6,7 @@ const loggerMiddleware = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
 const taskRoutes = require('./routes/taskRoutes');
 const authRoutes = require('./routes/authRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 // Load Event Listeners for background asynchronous notification handling (Practical 10)
 require('./listeners');
@@ -39,6 +40,7 @@ app.get('/', (req, res) => {
       createTask: 'POST /tasks (Requires Bearer Token)',
       updateTask: 'PUT /tasks/:id (Requires Bearer Token)',
       deleteTask: 'DELETE /tasks/:id (Requires Bearer Token)',
+      aiGenerateDescription: 'POST /api/ai/generate-description',
       testError: 'GET /test-error'
     }
   });
@@ -50,6 +52,9 @@ app.use('/', authRoutes);
 
 // 6. Protected Task Routes
 app.use('/tasks', taskRoutes);
+
+// 7. AI Assistant Routes (Practical 13)
+app.use('/api/ai', aiRoutes);
 
 // Endpoint to simulate unhandled internal server error for global error handler testing
 app.get('/test-error', (req, res, next) => {

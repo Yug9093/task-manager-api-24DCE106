@@ -1,6 +1,6 @@
-# TaskFlow — Full-Stack Task Manager (Practicals 7, 8, 9, 10, 11 & 12)
+# TaskFlow — Full-Stack Task Manager (Practicals 7, 8, 9, 10, 11, 12 & 13)
 
-A full-stack Task Management application connecting a **React (Vite)** frontend with code splitting (Practical 8) to an **Express.js + MongoDB (Mongoose)** backend featuring **JWT Authentication & Input Validation** (Practical 7), **In-Memory Caching with `node-cache` & Query Optimization** (Practical 9), **Asynchronous Event-Driven Architecture with Node.js `EventEmitter`** (Practical 10), **Containerization with Docker & Docker Compose** (Practical 11), and an **Automated CI/CD Pipeline with GitHub Actions** (Practical 12).
+A full-stack Task Management application connecting a **React (Vite)** frontend with code splitting (Practical 8) to an **Express.js + MongoDB (Mongoose)** backend featuring **JWT Authentication & Input Validation** (Practical 7), **In-Memory Caching with `node-cache` & Query Optimization** (Practical 9), **Asynchronous Event-Driven Architecture with Node.js `EventEmitter`** (Practical 10), **Containerization with Docker & Docker Compose** (Practical 11), an **Automated CI/CD Pipeline with GitHub Actions** (Practical 12), and **AI API Integration with Google Gemini API** (Practical 13).
 
 ---
 
@@ -55,6 +55,13 @@ Client Request (Authorization: Bearer <token>)
 - **Automated Quality Gates**: Deliberately tested failure detection (Red X on broken assertions) and successful verification on fixes (Green Checkmark).
 - **Practical 12 Documentation**: See [PRACTICAL_12_DOCUMENTATION.md](file:///c:/Users/yugpa/OneDrive/Documents/GitHub/task-manager-api-24DCE106/PRACTICAL_12_DOCUMENTATION.md) for full execution logs and live GitHub run links.
 
+### 8. AI API Integration with Google Gemini API (Practical 13)
+- **Auto-Generated Task Descriptions**: Connects to the Google Gemini 1.5 Flash REST API (`POST /api/ai/generate-description`) to generate actionable descriptions from task titles.
+- **Backend Key Safeguard**: The `GEMINI_API_KEY` is maintained strictly within `.env` on the server and is never exposed to client-side code.
+- **Graceful Error Handling**: If an API key is missing or invalid, or if the request times out, the backend gracefully responds with `{ fallback: true }` (status 200) ensuring core task management remains uninterrupted.
+- **Interactive UI Experience**: Renders the AI response in React as an editable suggestion that users can customize before adding the task.
+- **Practical 13 Documentation**: See [PRACTICAL_13_DOCUMENTATION.md](file:///c:/Users/yugpa/OneDrive/Documents/GitHub/task-manager-api-24DCE106/PRACTICAL_13_DOCUMENTATION.md) for complete details.
+
 ---
 
 ## 📂 Project Structure
@@ -70,10 +77,15 @@ task-manager-api-24DCE106/
 ├── PRACTICAL_9_DOCUMENTATION.md
 ├── PRACTICAL_10_DOCUMENTATION.md
 ├── PRACTICAL_11_DOCUMENTATION.md
-├── PRACTICAL_12_DOCUMENTATION.md # CI/CD Pipeline documentation & results
+├── PRACTICAL_12_DOCUMENTATION.md
+├── PRACTICAL_13_DOCUMENTATION.md # AI API Integration documentation & results
 ├── task-manager-api/
+│   ├── routes/
+│   │   ├── authRoutes.js       # /register, /login
+│   │   ├── taskRoutes.js       # Protected /tasks CRUD
+│   │   └── aiRoutes.js         # /api/ai/generate-description (Practical 13)
 │   ├── tests/
-│   │   └── app.test.js         # Jest & Supertest integration tests (Practical 12)
+│   │   └── app.test.js         # Jest & Supertest integration tests (Practicals 12 & 13)
 │   ├── models/
 │   │   ├── User.js             # User Schema (email, hashed password)
 │   │   └── Task.js             # Task Schema with user reference

@@ -25,4 +25,29 @@ describe('Task Management API Tests (CI Pipeline)', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
   });
+
+  // Practical 13 Test 1: Validate missing title in AI generation
+  test('POST /api/ai/generate-description returns 400 when title is missing', async () => {
+    const res = await request(app)
+      .post('/api/ai/generate-description')
+      .send({});
+    expect(res.statusCode).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  // Practical 13 Test 2: Verify graceful fallback when key is placeholder or invalid
+  test('POST /api/ai/generate-description gracefully handles fallback without crashing (status 200)', async () => {
+    const res = await request(app)
+      .post('/api/ai/generate-description')
+      .send({ title: 'Complete Web Dev Project' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toHaveProperty('fallback');
+    // If fallback is true, verify it includes a message
+    if (res.body.fallback) {
+      expect(res.body).toHaveProperty('message');
+    } else {
+      expect(typeof res.body.description).toBe('string');
+    }
+  });
 });
+
