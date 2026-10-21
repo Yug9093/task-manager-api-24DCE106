@@ -48,6 +48,6 @@ describe('Task Management API Tests (CI Pipeline)', () => {
     } else {
       expect(typeof res.body.description).toBe('string');
     }
-  });
+  }, 15000);
 });
 

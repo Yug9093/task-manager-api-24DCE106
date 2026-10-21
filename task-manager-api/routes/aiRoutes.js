@@ -29,12 +29,13 @@ router.post('/generate-description', async (req, res) => {
   }
 
   try {
-    // Call Gemini 1.5 Flash via REST endpoint
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey.trim())}`;
-    
-    // Set 8-second timeout using AbortController to prevent hanging
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    // Models prioritized by speed and stability for Google Gemini API
+    const candidateModels = [
+      'gemini-3.5-flash-lite',
+      'gemini-3.5-flash',
+      'gemini-3.8-flash',
+      'gemini-flash-latest'
+    ];
 
     const geminiPayload = {
       contents: [
@@ -52,35 +53,62 @@ router.post('/generate-description', async (req, res) => {
       }
     };
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(geminiPayload),
-      signal: controller.signal
-    });
+    let generatedText = '';
+    let lastError = null;
+    let successfulModel = '';
 
-    clearTimeout(timeoutId);
+    for (const model of candidateModels) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey.trim())}`;
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.warn('Gemini API returned error response:', response.status, errorData);
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(geminiPayload),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          const candidate = data.candidates?.[0];
+          const part = candidate?.content?.parts?.[0];
+          generatedText = part?.text?.trim() || '';
+          successfulModel = model;
+          break;
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          lastError = errData.error?.message || `Status ${response.status}`;
+          // If the API key is invalid (HTTP 400), don't retry other models
+          if (response.status === 400 && lastError.toLowerCase().includes('key')) {
+            break;
+          }
+        }
+      } catch (err) {
+        lastError = err.message;
+      }
+    }
+
+    if (generatedText) {
       return res.status(200).json({
-        description: '',
-        fallback: true,
-        error: errorData.error?.message || `Gemini API returned status ${response.status}`,
-        message: 'AI service unavailable or API key invalid. You can enter a description manually.'
+        description: generatedText,
+        fallback: false,
+        model: successfulModel
       });
     }
 
-    const data = await response.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-
+    // Graceful fallback if models fail
     return res.status(200).json({
-      description: generatedText,
-      fallback: false,
-      model: 'gemini-1.5-flash'
+      description: '',
+      fallback: true,
+      error: lastError,
+      message: 'AI service unavailable or API key invalid. You can enter a description manually.'
     });
   } catch (err) {
     console.error('Gemini AI generation exception:', err.message);

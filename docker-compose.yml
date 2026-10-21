@@ -18,11 +18,12 @@ services:
     restart: always
     ports:
       - "5000:5000"
+    env_file:
+      - ./task-manager-api/.env
     environment:
       - PORT=5000
       - MONGO_URI=mongodb://mongodb:27017/taskDB
       - JWT_SECRET=mySuperSecretJwtKeyTaskFlow2026!
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-your_gemini_api_key_here}
     depends_on:
       - mongodb
     networks:
